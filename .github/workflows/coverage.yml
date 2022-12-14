@@ -1,0 +1,53 @@
+name: generate report
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+    CoverageReport:
+      environment:
+        name: github-pages
+        url: ${{ steps.deployment.outputs.page_url }}
+      runs-on: ubuntu-latest
+      steps:
+        #should be containerized
+        - name: Install dependecies
+          run: sudo apt install gcovr
+        - name: Checkout
+          uses: actions/checkout@v3
+        - name: Build project
+          run: |
+            mkdir build && cd build
+            cmake .. 
+            make all
+        - name: Run tests
+          run: |
+            ./build/tests
+        - name: Generate html report
+          run: |
+            mkdir ./coverage
+            gcovr -r ./ --html --html-details --branches -o ./coverage/index.html
+        - name: Setup Pages
+          uses: actions/configure-pages@v2
+        - name: Upload artifact
+          uses: actions/upload-pages-artifact@v1
+          with:
+            path: './coverage'
+        - name: Deploy to GitHub Pages
+          id: deployment
+          uses: actions/deploy-pages@v1
